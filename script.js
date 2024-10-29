@@ -94,19 +94,36 @@ function displayPurchases(phone) {
 
     tableBody.innerHTML = '';
     purchases.forEach((purchase, index) => {
+        const [year, month, day] = purchase.date.split('-');
+        const formattedDate = `${day}-${month}-${year}`;
+        
+        const [expYear, expMonth, expDay] = purchase.expiryDate.split('-');
+        const formattedExpiryDate = `${expDay}-${expMonth}-${expYear}`;
+
         const row = `
             <tr>
                 <td>${index + 1}</td>
-                <td>${purchase.date}</td>
+                <td>${formattedDate}</td>
                 <td>${purchase.amount.toFixed(2)}</td>
                 <td>${purchase.usableCredit.toFixed(2)}</td>
                 <td>${purchase.finalPrice.toFixed(2)}</td>
                 <td>${purchase.newCredit.toFixed(2)}</td>
                 <td>${purchase.totalCredit.toFixed(2)}</td>
-                <td>${purchase.expiryDate}</td>
+                <td>${formattedExpiryDate}</td>
             </tr>
         `;
         tableBody.insertAdjacentHTML('beforeend', row);
+    });
+
+    // Reinitialize the Vanilla-DataTable instance for the updated table
+    if (window.dataTableInstance) {
+        window.dataTableInstance.destroy();
+    }
+    window.dataTableInstance = new DataTable("#purchaseTable", {
+        searchable: true,
+        sortable: true,
+        fixedHeight: true
+
     });
 }
 
