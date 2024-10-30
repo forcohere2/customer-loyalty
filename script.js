@@ -1,6 +1,6 @@
-function getCreditExpiryDate() {
-    let expiryDate = new Date();
-    expiryDate.setMonth(expiryDate.getMonth() + 6); // Credits expire in 6 months
+function getCreditExpiryDate(purchaseDate) {
+    let expiryDate = new Date(purchaseDate);
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
     return expiryDate.toISOString().split('T')[0];
 }
 
@@ -23,21 +23,21 @@ function calculateCredit(amount, totalCredit, date, lastPurchaseDate) {
     } else {
         isNewCreditEarned = true;
         newCredit = amount * 0.10;
-        usableCredit = Math.min(totalCredit * 0.05, amount * 0.05);
+        usableCredit = Math.min(totalCredit, amount * 0.05);
     }
 
     return { newCredit, usableCredit, isNewCreditEarned };
 }
 
-function calculateTotalCredit(purchases) {
-    let totalCredit = 0;
-    const currentDate = new Date().toISOString().split('T')[0];
-    purchases.forEach(purchase => {
-        if (purchase.expiryDate > currentDate) {
-            totalCredit += purchase.newCredit;
-        }
-    });
-    return totalCredit;
+function searchUser() {
+    const phone = document.getElementById("phone").value.trim();
+
+    if (!phone) {
+        alert("Please enter a phone number.");
+        return;
+    }
+
+    displayPurchases(phone);
 }
 
 function addPurchase() {
@@ -53,12 +53,19 @@ function addPurchase() {
     const purchases = getPurchases(phone);
     const lastPurchase = purchases.length ? purchases[purchases.length - 1] : null;
     const lastPurchaseDate = lastPurchase ? lastPurchase.date : null;
-    const totalCredit = calculateTotalCredit(purchases);
+    
+    const currentTotalCredit = lastPurchase ? lastPurchase.totalCredit : 0;
 
-    const { newCredit, usableCredit, isNewCreditEarned } = calculateCredit(amount, totalCredit, date, lastPurchaseDate);
+    const { newCredit, usableCredit, isNewCreditEarned } = calculateCredit(amount, currentTotalCredit, date, lastPurchaseDate);
+    
+    let updatedTotalCredit = isNewCreditEarned 
+        ? currentTotalCredit - usableCredit + newCredit 
+        : currentTotalCredit;
+
     const finalPrice = amount - usableCredit;
-    const updatedTotalCredit = totalCredit - usableCredit + newCredit;
-    const expiryDate = getCreditExpiryDate();
+
+    // Only set expiry date if new credit is earned
+    const expiryDate = newCredit > 0 ? getCreditExpiryDate(date) : "-";
 
     const purchase = {
         date,
@@ -74,9 +81,11 @@ function addPurchase() {
     savePurchases(phone, purchases);
     displayPurchases(phone);
 
-    document.getElementById("phone").value = "";
-    document.getElementById("date").value = "";
-    document.getElementById("amount").value = "";
+    localStorage.setItem("tempPhone", phone);
+    localStorage.setItem("tempDate", date);
+    localStorage.setItem("tempAmount", amount);
+
+    location.reload();
 }
 
 function displayPurchases(phone) {
@@ -97,8 +106,9 @@ function displayPurchases(phone) {
         const [year, month, day] = purchase.date.split('-');
         const formattedDate = `${day}-${month}-${year}`;
         
-        const [expYear, expMonth, expDay] = purchase.expiryDate.split('-');
-        const formattedExpiryDate = `${expDay}-${expMonth}-${expYear}`;
+        const formattedExpiryDate = purchase.expiryDate !== "-" 
+            ? `${purchase.expiryDate.split('-').reverse().join('-')}`
+            : "-";
 
         const row = `
             <tr>
@@ -115,7 +125,6 @@ function displayPurchases(phone) {
         tableBody.insertAdjacentHTML('beforeend', row);
     });
 
-    // Reinitialize the Vanilla-DataTable instance for the updated table
     if (window.dataTableInstance) {
         window.dataTableInstance.destroy();
     }
@@ -123,22 +132,22 @@ function displayPurchases(phone) {
         searchable: true,
         sortable: true,
         fixedHeight: true
-
     });
 }
 
-document.getElementById("phone").addEventListener("input", function () {
-    const phone = this.value.trim();
-    if (phone) {
-        displayPurchases(phone);
-    } else {
-        document.getElementById("purchase-table").innerHTML = '';
-        document.getElementById("no-history-message").style.display = "block";
-    }
-});
-
 document.addEventListener("DOMContentLoaded", function () {
     const phoneNumbers = Object.keys(localStorage);
+    const phone = localStorage.getItem("tempPhone");
+    const date = localStorage.getItem("tempDate");
+    const amount = localStorage.getItem("tempAmount");
+
+    if (phone) document.getElementById("phone").value = phone;
+    if (date) document.getElementById("date").value = date;
+    if (amount) document.getElementById("amount").value = amount;
+
+    localStorage.removeItem("tempPhone");
+    localStorage.removeItem("tempDate");
+    localStorage.removeItem("tempAmount");
 
     const autoCompleteJS = new autoComplete({
         placeHolder: "Enter phone number...",
@@ -160,4 +169,8 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
     });
+
+    if (phone) {
+        displayPurchases(phone);
+    }
 });
