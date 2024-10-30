@@ -15,15 +15,16 @@ function savePurchases(phone, purchases) {
 function calculateCredit(amount, totalCredit, date, lastPurchaseDate) {
     let newCredit = 0;
     let usableCredit = 0;
-    let isNewCreditEarned = false;
+    let isNewCreditEarned = true;
 
     if (lastPurchaseDate && lastPurchaseDate === date) {
-        newCredit = 0;
-        usableCredit = 0;
+        usableCredit = 0;  // Can't use any credit on same-day purchases
+        const finalPrice = amount - usableCredit;
+        newCredit = finalPrice * 0.10;  // 10% of final price
     } else {
-        isNewCreditEarned = true;
-        newCredit = amount * 0.10;
         usableCredit = Math.min(totalCredit, amount * 0.05);
+        const finalPrice = amount - usableCredit;
+        newCredit = finalPrice * 0.10;  // 10% of final price
     }
 
     return { newCredit, usableCredit, isNewCreditEarned };
